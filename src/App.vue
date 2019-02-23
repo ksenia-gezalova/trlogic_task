@@ -1,6 +1,5 @@
 <template>
   <div id="app">
-    <h1>Welcome to the auth form</h1>
     <Form></Form>
   </div>
 </template>
@@ -19,6 +18,7 @@ export default {
 body {
   padding: 0;
   margin: 0;
+  min-width: 320px;
 }
 #app {
   font-family: 'Avenir', Helvetica, Arial, sans-serif;
