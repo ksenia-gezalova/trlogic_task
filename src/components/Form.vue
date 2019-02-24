@@ -1,5 +1,5 @@
 <template>
-  <div class="form">
+  <div class="form" :class="{'form--success': isSuccess}">
     <div v-if="!isSuccess">
       <h1>Welcome to the <span v-if="isNew">auth</span> <span v-if="isExist">login</span> form</h1>
     <div v-if="showAlert" class="form__alert">
@@ -15,18 +15,20 @@
       <input type="text" class="form__field" id="name" placeholder="Please enter your real name" v-model="name" required></div>
     <div class="form__wrapper">
       <label for="login" class="form__label">Login*</label>
-      <input type="text" class="form__field" id="login" placeholder="Choose your nickname" v-model="login" required></div>
-    <div class="form__wrapper">
+      <input type="text" class="form__field" id="login" placeholder="Choose your nickname" v-model="login" autocomplete="username" required></div>
+    <div class="form__wrapper form__wrapper--icon">
+      <img class="form__icon" src="https://img.icons8.com/color/30/000000/checked-2.png" v-if="isOk">
+      <img class="form__icon" src="https://img.icons8.com/color/30/000000/close-window.png" v-if="isError">
       <label for="email" class="form__label">Email*</label>
-      <input type="email" id="email" class="form__field" placeholder="Give us your mail" v-model="email" required></div>
+      <input type="email" id="email" class="form__field" placeholder="Give us your mail" v-model="email" autocomplete="username email" required v-on:change="validateEmail(email)"></div>
     <div class="form__wrapper">
       <label for="password" class="form__label">Password*</label>
-      <input type="password" class="form__field" id="password" placeholder="Make strong password" v-model="password" required></div>
+      <input type="password" class="form__field" id="password" placeholder="Make strong password" v-model="password" autocomplete="new-password" required></div>
     <div class="form__wrapper">
       <label for="password-repeat" class="form__label">Repeat password*</label>
-      <input type="password" class="form__field" id="password-repeat" placeholder="Repeat your password" v-model="passwordRepeat" required>
+      <input type="password" class="form__field" id="password-repeat" placeholder="Repeat your password" v-model="passwordRepeat" autocomplete="new-password" required>
     </div>
-    <button class="form__button" v-on:click="insertData()">Sign up</button>
+    <button type="button" class="form__button" v-on:click="sign('up')">Sign up</button>
     </form>
 
     <form class="form__login" v-if="isExist" v-on:keyup="showAlert = false">
@@ -38,13 +40,7 @@
         <label for="password" class="form__label">Password*</label>
         <input type="password" class="form__field" id="password" placeholder="Enter your password" v-model="password" required>
       </div>
-      <p class="form__restore" v-on:click="isForgot = !isForgot">Forgot your password?</p>
-      <div class="form__wrapper" v-if="isForgot">
-        <label for="email-sent" class="form__label">Email</label>
-        <input type="email" class="form__field" id="email-sent" placeholder="Enter your email" v-model="emailSent">
-        <button class="form__button form__button--restore" v-on:click="restorePassword()">Restore password</button>
-      </div>
-      <button class="form__button" v-on:click="findData()">Sign in</button>
+      <button type="button" class="form__button" v-on:click="sign('in')">Sign in</button>
     </form>
     <p class="form__text">*required fields</p>
     </div>
@@ -52,14 +48,21 @@
 
     <div class="form__success" v-if="isSuccess">
       Congratulations! You have passed all checks!
+      <p>You profile below:</p>
+      <div class="form__wrapper-success">
+        <b>Your name:</b> {{ profile.name }}
+        <b>Your login:</b> {{ profile.login }}
+        <b>Your mail:</b> {{ profile.email }}
+        <b>Your password:</b> {{ profile.password }}
+      </div>
     </div>
   </div>
 </template>
 
 <script>
 var Datastore = require('nedb')
-var db = new Datastore({filename:'./test.db', autoload:true})
-//test.ensureIndex({ fieldName: 'email', unique: true });
+var db = new Datastore({filename:'./users.db', autoload:true})
+db.ensureIndex({ fieldName: 'email', unique: true });
 export default {
   name: 'form',
   data() {
@@ -67,57 +70,98 @@ export default {
       isNew: true,
       isExist: false,
       isSuccess: false,
-      isForgot: false,
+      isOk: null,
+      isError: null,
       login: '',
       password: '',
       passwordRepeat: '',
       email: '',
       name: '',
-      emailSent: '',
       showAlert: false,
       message: '',
+      profile: ''
     }
   },
   methods: {
-    validateFields() {
+    validateEmail(email) {
+    var re = /^(([^<>()\[\]\\.,;:\s@"]+(\.[^<>()\[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/;
+    if(re.test(String(email).toLowerCase())) {
+      this.isError = false;
+      this.isOk = true;
+    } else {
+      this.isOk = false;
+      this.isError = true;
+    }
+    return re.test(String(email).toLowerCase());
+  },
+    sentData() {
       if(this.isNew) {
-        if(this.login === '' || this.password === '' || this.email === '' || this.name === '' || this.passwordRepeat === '') {
+        if(this.login === '' || this.password === '' || this.email === '' || this.name === '' || this.passwordRepeat === '' || !this.validateEmail(this.email)) {
           this.message = 'Please fill all required fields';
           this.showAlert = true;
-          return
+          return false;
         }
         if(this.password !== this.passwordRepeat) {
           this.message = 'Your password information does not match, try again';
           this.showAlert = true;
-          return
+          return false;
+        }
+        if(this.validateEmail(this.email)) {
+          return true;
         }
       } else {
-          this.message = 'Please fill all required fields';
+        if(this.login === '' || this.password === '') {
+          this.message = 'Please fill all required fieldsss';
           this.showAlert = true;
-          return
+          return false;
+        } else {
+          return true;
+        }       
       }    
     },
     insertData() {
-      this.validateFields();
-      db.insert({name:this.name, password:this.password, email:this.email, login:this.login}, function(err, res) {
-          console.log(res);
-          console.log('errr' + err)
+      db.insert({name:this.name, password:this.password, email:this.email, login:this.login}, (err, res) => {
+        if(err) {
+          this.message = 'This mail is already in use';
+          this.showAlert = true;
+        } else {
+          this.showAlert = false;
+          this.profile = res;
+          this.isSuccess = true;
+        }
         })
     },
     findData() {
-        db.find({ login: 'ksenia-gezalova' }, function(err, res) {
-          console.log(res)
-        })
-    },
-    restorePassword() {
-      db.findOne({ email: this.emailSent }, function(err, res) {
-          console.log(res)
+        db.findOne({ login: this.login, password: this.password }, (err, res) => {
           if(res === null) {  
-            alert('Unfortunately user not found :(')
+            this.message = 'Unfortunately user not found :(';
+            this.showAlert = true;
           } else {
-            alert('Your password:' + res.password)
+            this.showAlert = false;
+            this.profile = res;
+            this.isSuccess = true;
           }
         })
+    },
+    deleteDb() {
+      db.remove({}, { multi: true }, function(err, numDeleted) {  
+      console.log('Deleted', numDeleted, 'user(s)');
+    });
+    },
+    sign(str) {
+      this.sentData();
+      if(this.sentData()) {
+        switch(str) {
+          case 'up': 
+            this.insertData();
+            break;
+          case 'in':
+            this.findData();
+            break;
+        }
+      } else {
+        return;
+      }
     }
   }
 }
@@ -131,6 +175,10 @@ export default {
   padding: 20px;
   //min-height: 280px;
   padding-bottom: 10px;
+
+  &--success {
+    border-color: green;
+  }
 
   @media(min-width: 768px) {
     font-size: 16px;
@@ -179,6 +227,23 @@ export default {
   grid-gap: 30px;
   text-align: left;
   margin-bottom: 10px;
+
+  &--icon {
+    position: relative;
+  }
+
+  &-success {
+    display: grid;
+    grid-template-columns: 3fr 1fr;
+    text-align: left;
+    padding: 0 20px;
+  }
+}
+
+&__icon {
+  position: absolute;
+  right: 0;
+  top: -4px;
 }
 
 &__field {
@@ -194,10 +259,6 @@ export default {
 
 &__success {
   color: green;
-}
-
-&__restore {
-  cursor: pointer;
 }
 }
 </style>
